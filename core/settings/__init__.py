@@ -6,7 +6,7 @@ from RinUI import RinUIWindow
 
 from .service import SettingsService
 from ..choice import ChoiceMaker
-from ..config import SettingsConfig, StudentsConfig
+from ..config import SettingsConfig, StudentsConfig, GroupsConfig
 from ..config.dirs import *
 from ..face import FaceChooser
 from ..integration import NotificationManager
@@ -29,6 +29,7 @@ class SettingsWindow(RinUIWindow):
         self.engine.rootContext().setContextProperty("SettingsConfig", SettingsConfig.instance())
         self.engine.rootContext().setContextProperty("ChoiceMaker", ChoiceMaker.instance())
         self.engine.rootContext().setContextProperty("StudentsConfig", StudentsConfig.instance())
+        self.engine.rootContext().setContextProperty("GroupsConfig", GroupsConfig.instance())
         self.engine.rootContext().setContextProperty("VersionInfo", versionInfo)
         self.engine.rootContext().setContextProperty("AppMain", self.main)
         self.engine.rootContext().setContextProperty("NotificationManager", NotificationManager.instance())

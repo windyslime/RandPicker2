@@ -10,7 +10,7 @@ from RinUI import ThemeManager
 from loguru import logger
 
 from .choice import ChoiceMaker
-from .config import SettingsConfig, StudentsConfig
+from .config import SettingsConfig, StudentsConfig, GroupsConfig
 from .integration import NotificationManager
 from .integration.classisland import ClassIslandIntegration
 from .settings import SettingsWindow
@@ -33,6 +33,7 @@ class RPMain(QObject):
         self.choiceMaker = None
         self.notificationManager = None
         self.studentsConfig = None
+        self.groupsConfig = None
         self.settingsConfig = None
         self.widget = None
         self.themeManager = None
@@ -54,6 +55,7 @@ class RPMain(QObject):
 
         # 其他核心组件
         self.studentsConfig = StudentsConfig()
+        self.groupsConfig = GroupsConfig()
         self.notificationManager = NotificationManager()
         self.choiceMaker = ChoiceMaker()
 

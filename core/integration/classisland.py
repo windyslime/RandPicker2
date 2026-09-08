@@ -284,8 +284,8 @@ if CSHARP_AVAILABLE:
                         pick_stu.CustomProperties.Add(custom_property)
                     result.StudentList.Add(pick_stu)
             elif pick_type == "group":
-                # TODO)) GROUP
-                pass
+                # ClassIsland 当前协议以标题/遮罩承载组名；组名已在模板中写入。
+                logger.debug("ClassIsland 组通知使用组名模板")
             else:
                 pass
 

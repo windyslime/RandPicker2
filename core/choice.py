@@ -8,6 +8,8 @@ from PySide6.QtCore import QObject, Slot, Signal, Property
 from loguru import logger
 
 from .config.students import StudentsConfig
+from .config.groups import GroupsConfig
+from random import choices
 from .integration import NotificationManager
 
 
@@ -25,6 +27,7 @@ class ChoiceMaker(QObject):
         super().__init__()
         ChoiceMaker._instance = self
         self.studentsConfig = StudentsConfig.instance()
+        self.groupsConfig = GroupsConfig.instance()
         self.notificationManager = NotificationManager.instance()
         self._refresh()
 
@@ -96,9 +99,15 @@ class ChoiceMaker(QObject):
                     self._memory_set.add(student_id)
             return final_result
 
-    def advancedChoose(self):
-        """ TODO)) 高级抽选"""
-        pass
+    @Slot(int, bool, result=list)
+    def advancedChoose(self, number: int = 1, notify: bool = True) -> list[Any]:
+        groups = self.groupsConfig.get_enabled_groups()
+        if not groups: return []
+        number = min(max(1, number), len(groups)); pool = list(groups); result = []
+        for _ in range(number):
+            pick = choices(pool, weights=[g.get("weight", 1) for g in pool], k=1)[0]; result.append(pick); pool.remove(pick)
+        if notify: self.notificationManager.send("group", result); return []
+        return result
 
     @Property(bool, notify=memoryEnabledChanged)
     def memoryEnabled(self) -> bool:

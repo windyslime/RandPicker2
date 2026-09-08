@@ -275,7 +275,7 @@ QQW.Window {
                     id: pickButton
 
                     iconName: "ic_fluent_people_20_regular"
-                    text: "人"
+                    text: "抽人"
                     visible: SettingsConfig.showDrawButton
 
                     onClicked: ChoiceMaker.choosePeople(itemCount, true)
@@ -284,10 +284,10 @@ QQW.Window {
                     id: itemButton
 
                     iconName: "ic_fluent_group_20_regular"
-                    text: "组"
+                    text: "抽组"
                     visible: SettingsConfig.showGroupButton
 
-                    onClicked: console.log(" [TODO] 抽组")
+                    onClicked: ChoiceMaker.advancedChoose(itemCount, true)
                 }
                 RowLayout {
                     Layout.fillWidth: true
