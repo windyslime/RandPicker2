@@ -1,9 +1,10 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import RinUI
-
-FluentPage {
-    title: qsTr("配置管理")
-    ColumnLayout { anchors.centerIn: parent; Button { text: qsTr("保存学生配置"); onClicked: StudentsConfig.save_config() } Button { text: qsTr("保存小组配置"); onClicked: GroupsConfig.save_config() } Button { text: qsTr("重新加载配置"); onClicked: { StudentsConfig.reload_config(); GroupsConfig.reload_config() } } Label { text: qsTr("配置文件位于 config 目录，可直接复制进行备份。") } }
+FluentPage { title:qsTr("配置管理")
+ FileDialog{id:save;fileMode:FileDialog.SaveFile;onAccepted:SettingsService.exportConfig(selectedFile)}
+ FileDialog{id:open;fileMode:FileDialog.OpenFile;onAccepted:SettingsService.importConfig(selectedFile)}
+ ColumnLayout{anchors.centerIn:parent;Button{text:qsTr("导出/备份配置");onClicked:save.open()}Button{text:qsTr("导入/恢复配置");onClicked:open.open()}Label{text:qsTr("配置包包含学生、小组和应用设置。")}}
 }

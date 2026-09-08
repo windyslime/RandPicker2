@@ -2,6 +2,9 @@
 设置服务模块 - 获取但不需要配置
 """
 import platform
+import json
+from pathlib import Path
+from PySide6.QtCore import QUrl
 
 from PySide6.QtCore import Slot, QObject, Signal
 from loguru import logger
@@ -71,3 +74,26 @@ class SettingsService(QObject):
                 return "https://dotnet.microsoft.com/en-us/download/dotnet/scripts"
 
         return f"https://dotnet.microsoft.com/en-us/download/dotnet/thank-you/runtime-8.0.23-{running_os}-{arch}-installer"
+
+    @Slot(str, result=bool)
+    def exportConfig(self, path):
+        try:
+            from ..config import StudentsConfig, GroupsConfig, SettingsConfig
+            target = Path(QUrl(path).toLocalFile() if str(path).startswith("file:") else path)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(json.dumps({"students": StudentsConfig.instance().getBuffer(), "groups": {"groups": GroupsConfig.instance().get_write_groups()}, "settings": SettingsConfig.instance().config}, ensure_ascii=False, indent=2), encoding="utf-8")
+            return True
+        except Exception as e:
+            logger.exception(f"导出配置失败: {e}"); return False
+
+    @Slot(str, result=bool)
+    def importConfig(self, path):
+        try:
+            from ..config import StudentsConfig, GroupsConfig, SettingsConfig
+            source = Path(QUrl(path).toLocalFile() if str(path).startswith("file:") else path)
+            data = json.loads(source.read_text(encoding="utf-8"))
+            if not all(isinstance(data.get(k), dict) for k in ("students", "groups", "settings")): raise ValueError("配置包缺少必要字段")
+            StudentsConfig.instance().config_write = data["students"]; GroupsConfig.instance().config_write = data["groups"]; SettingsConfig.instance().config = data["settings"]
+            StudentsConfig.instance().save_config(); GroupsConfig.instance().save_config(); SettingsConfig.instance().save_config(); return True
+        except Exception as e:
+            logger.exception(f"导入配置失败: {e}"); return False
