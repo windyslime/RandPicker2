@@ -135,13 +135,16 @@ class RPMain(QObject):
             fc.cleanup()
 
     def open_uiaccess(self):
+        if sys.platform != "win32":
+            logger.debug("当前平台不支持 UIAccess，跳过加载。")
+            return
         if not self.settingsConfig.getUIAccessEnabled():
             logger.debug("未启用 UIAccess，跳过加载。")
             return
 
         try:
             from .uiaccess import IsUIAccess, run_with_uiaccess, check_privileges
-        except ImportError as e:
+        except Exception as e:
             logger.exception(f"导入 UIAccess 模块时发生错误: {e}，跳过启用 UIAccess。")
             return
 

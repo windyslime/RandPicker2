@@ -16,7 +16,7 @@ FluentPage {
         Switch {
             checked: SettingsConfig.getUIAccessEnabled()
 
-            onCheckedChanged: SettingsConfig.setUIAccessEnabled(checked)
+            onToggled: SettingsConfig.setUIAccessEnabled(checked)
         }
     }
 }

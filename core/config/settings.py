@@ -282,6 +282,7 @@ class SettingsConfig(ConfigManager, QObject):
     # endregion
 
     # region UIACCESS
+    @Slot(result=bool)
     def getUIAccessEnabled(self) -> bool:
         """获取 UIAccess 启用状态"""
         advanced = self.config.get("advanced", {})
@@ -291,7 +292,7 @@ class SettingsConfig(ConfigManager, QObject):
     def setUIAccessEnabled(self, enabled: bool) -> None:
         """设置 UIAccess 启用状态"""
         advanced = self.config.setdefault("advanced", {})
-        advanced["uiaccess"] = enabled
+        advanced["uiaccess"] = bool(enabled)
         self.save_config()
 
     # endregion
