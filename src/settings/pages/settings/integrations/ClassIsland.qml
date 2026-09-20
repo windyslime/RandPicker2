@@ -140,6 +140,30 @@ Item {
             }
         }
         SettingCard {
+            Layout.fillWidth: true
+            description: qsTr("启用后，不同学科分别记录已抽到的学生。")
+            title: qsTr("按学科分开记忆")
+
+            Switch {
+                id: memoryBySubjectSwitch
+
+                checked: SettingsConfig.getCiMemoryBySubject()
+
+                onToggled: SettingsConfig.setCiMemoryBySubject(checked)
+            }
+        }
+        SettingCard {
+            Layout.fillWidth: true
+            description: qsTr("启用后，记忆保存到本地；关闭记忆后再次启用仍会保留已抽选记录。")
+            title: qsTr("记忆本地持久化")
+
+            Switch {
+                checked: SettingsConfig.getCiMemoryPersistent()
+
+                onToggled: SettingsConfig.setCiMemoryPersistent(checked)
+            }
+        }
+        SettingCard {
             id: notifyFormatSettingCard
 
             Layout.fillWidth: true

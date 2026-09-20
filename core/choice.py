@@ -1,15 +1,17 @@
 """
 随机选择
 """
-from random import choices
 from typing import Any
+from random import choices
 
 from PySide6.QtCore import QObject, Slot, Signal, Property
 from loguru import logger
 
 from .config.students import StudentsConfig
 from .config.groups import GroupsConfig
-from random import choices
+from .config.memory import MemoryConfig
+from .config.settings import SettingsConfig
+from .integration.classisland import ClassIslandIntegration
 from .integration import NotificationManager
 
 
@@ -29,12 +31,23 @@ class ChoiceMaker(QObject):
         self.studentsConfig = StudentsConfig.instance()
         self.groupsConfig = GroupsConfig.instance()
         self.notificationManager = NotificationManager.instance()
+        self.settingsConfig = SettingsConfig.instance()
+        self.classIsland = ClassIslandIntegration.instance()
+        self.memoryConfig = MemoryConfig(
+            student_ids=lambda: [
+                student.get("id")
+                for student in self.studentsConfig.get_students()
+                if isinstance(student, dict)
+            ]
+        )
+        if not self.settingsConfig.getCiMemoryPersistent():
+            # Ignore persisted history for this session without deleting it.
+            self.memoryConfig.clear()
         self._refresh()
 
         # 记忆模式状态
         self._memory_enabled = False
-        # 一选
-        self._memory_set: set = set()
+        # 记忆历史由 MemoryConfig 按科目分区管理。
 
     def _refresh(self):
         self.students = self.studentsConfig.get_enabled_students()
@@ -48,14 +61,18 @@ class ChoiceMaker(QObject):
             logger.warning("没有可用的学生进行选择。")
             return None
 
+        memory_key = self._memory_key()
+
         # 记忆模式前处理
         available_students = list(self.students)
         available_weights = list(self.students_weights)
         if self._memory_enabled:
-            pairs = [(s, w) for s, w in zip(available_students, available_weights) if s not in self._memory_set]
+            remembered = self.memoryConfig.get(memory_key)
+            pairs = [(s, w) for s, w in zip(available_students, available_weights) if s not in remembered]
             if not pairs:
-                # 自动清空会话内记忆，允许重新从全部学生中抽选
-                self._memory_set.clear()
+                # 只清空当前科目分区，允许该科目开始下一轮抽选。
+                self.memoryConfig.clear(memory_key)
+                self._save_memory()
             else:
                 available_students, available_weights = map(list, zip(*pairs))
 
@@ -82,10 +99,7 @@ class ChoiceMaker(QObject):
                 # message=", ".join([self.studentsConfig.get_single_student(s).get("name", "未知") for s in result])
                 stus=[self.studentsConfig.get_single_student(s) for s in result]
             )
-            # 记忆模式下记录已抽中的学生
-            if self._memory_enabled:
-                for student_id in result:
-                    self._memory_set.add(student_id)
+            self._remember(memory_key, result)
             return None
         else:
             final_result = []
@@ -94,9 +108,7 @@ class ChoiceMaker(QObject):
                 student["properties"] = self.studentsConfig.getProperty(student_id)
                 student["avatar"] = self.studentsConfig.getAvatarPath(student_id)
                 final_result.append(student)
-            if self._memory_enabled:
-                for student_id in result:
-                    self._memory_set.add(student_id)
+            self._remember(memory_key, result)
             return final_result
 
     @Slot(int, bool, result=list)
@@ -116,7 +128,7 @@ class ChoiceMaker(QObject):
 
     @memoryEnabled.setter
     def memoryEnabled(self, enabled: bool) -> None:
-        """启用/禁用会话内记忆模式（排除已选学生）"""
+        """启用/禁用记忆过滤（不会清除已有历史）。"""
         self._memory_enabled = bool(enabled)
         try:
             self.memoryEnabledChanged.emit(self._memory_enabled)
@@ -125,5 +137,27 @@ class ChoiceMaker(QObject):
 
     @Slot()
     def resetMemory(self) -> None:
-        """清除会话内记忆（重置已记录的已选学生）"""
-        self._memory_set.clear()
+        """清除全部科目记忆，并同步清空本地文件。"""
+        self.memoryConfig.clear()
+        self.memoryConfig.save()
+
+    def _memory_key(self) -> str:
+        """根据 ClassIsland 当前科目计算本次抽选的记忆分区。"""
+        if not self.settingsConfig.getCiMemoryBySubject():
+            return MemoryConfig.DEFAULT_KEY
+        try:
+            subject = self.classIsland.get_current_subject() if self.classIsland else None
+        except Exception as e:
+            logger.debug(f"获取当前科目失败，使用默认记忆分区: {e}")
+            subject = None
+        return MemoryConfig._normalize_key(subject)
+
+    def _save_memory(self) -> None:
+        if self.settingsConfig.getCiMemoryPersistent():
+            self.memoryConfig.save()
+
+    def _remember(self, memory_key: str, student_ids: list[str]) -> None:
+        if not self._memory_enabled or not student_ids:
+            return
+        self.memoryConfig.add(memory_key, student_ids)
+        self._save_memory()

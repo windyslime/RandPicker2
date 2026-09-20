@@ -45,6 +45,8 @@ DEFAULT_CONFIG = {
                 "mask_duration": 0,
                 "overlay_duration": 0,
                 "overlay_type": 2,  # 0: simple, 1: rolling, 2: auto
+                "memory_by_subject": True,
+                "memory_persistent": True,
                 "format": {
                     "title": "抽选了 {count} {suffix}",
                     "body": "{names}",
@@ -123,7 +125,7 @@ class SettingsConfig(ConfigManager, QObject):
         """设置通知方式状态"""
         notification = self.config.setdefault("notification", {})
         options = notification.setdefault("options", {})
-        options[option]["enabled"] = status
+        options.setdefault(option, {})["enabled"] = status
         self.save_config()
 
     def getAllEnabledNotifyOptions(self) -> list:
@@ -212,6 +214,40 @@ class SettingsConfig(ConfigManager, QObject):
                 ci_options["overlay_type"] = 2
             case _:
                 ci_options["overlay_type"] = 0
+        self.save_config()
+
+    @Slot(result=bool)
+    def getCiMemoryBySubject(self) -> bool:
+        """获取是否按 ClassIsland 当前科目分开保存记忆。"""
+        notification = self.config.get("notification", {})
+        options = notification.get("options", {})
+        ci_options = options.get("classisland", {})
+        return bool(ci_options.get("memory_by_subject", True))
+
+    @Slot(bool)
+    def setCiMemoryBySubject(self, enabled: bool) -> None:
+        """设置是否按 ClassIsland 当前科目分开保存记忆。"""
+        notification = self.config.setdefault("notification", {})
+        options = notification.setdefault("options", {})
+        ci_options = options.setdefault("classisland", {})
+        ci_options["memory_by_subject"] = bool(enabled)
+        self.save_config()
+
+    @Slot(result=bool)
+    def getCiMemoryPersistent(self) -> bool:
+        """获取是否将记忆保存到本地。"""
+        notification = self.config.get("notification", {})
+        options = notification.get("options", {})
+        ci_options = options.get("classisland", {})
+        return bool(ci_options.get("memory_persistent", True))
+
+    @Slot(bool)
+    def setCiMemoryPersistent(self, enabled: bool) -> None:
+        """设置是否将记忆保存到本地。"""
+        notification = self.config.setdefault("notification", {})
+        options = notification.setdefault("options", {})
+        ci_options = options.setdefault("classisland", {})
+        ci_options["memory_persistent"] = bool(enabled)
         self.save_config()
 
     @Slot(str, result=dict)

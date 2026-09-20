@@ -40,6 +40,8 @@ try:
     # noinspection PyUnresolvedReferences
     from ClassIsland.Shared.IPC import IpcClient
     # noinspection PyUnresolvedReferences
+    from ClassIsland.Shared.IPC.Abstractions.Services import IPublicLessonsService
+    # noinspection PyUnresolvedReferences
     from dotnetCampus.Ipc.CompilerServices.GeneratedProxies import GeneratedIpcFactory
     # noinspection PyUnresolvedReferences
     from RP4CI.Interface.Models import NotifyResult, PickType, OverlayType, PickStudent, CustomProperty
@@ -204,6 +206,27 @@ if CSHARP_AVAILABLE:
                 # logger.warning(f"检查 ClassIsland 集成连接状态时出现 {type(e)} 错误: {e}")
                 return False
 
+        def get_current_subject(self) -> str | None:
+            """读取 ClassIsland 当前课程科目，读取失败时返回 None。"""
+            if self.connectivity_status != "Connected":
+                return None
+            try:
+                if self.ipcClient is None or self.ipcClient.PeerProxy is None:
+                    return None
+                lessons_service = GeneratedIpcFactory.CreateIpcProxy[IPublicLessonsService](
+                    self.ipcClient.Provider,
+                    self.ipcClient.PeerProxy,
+                )
+                subject = lessons_service.CurrentSubject
+                name = getattr(subject, "Name", None)
+                if name is None:
+                    return None
+                name = str(name).strip()
+                return name or None
+            except Exception as e:
+                logger.debug(f"读取 ClassIsland 当前科目失败: {e}")
+                return None
+
         @dispatch(str, list)
         def send_message(self, pick_type: str, stus: list) -> bool:
             if self.connectivity_status != "Connected":
@@ -345,6 +368,9 @@ else:
         def send_message(self, *arg) -> bool:
             logger.warning("ClassIsland 集成不可用，无法发送通知。")
             return False
+
+        def get_current_subject(self) -> str | None:
+            return None
 
         def send_test(self):
             logger.warning("ClassIsland 集成不可用，无法发送测试通知。")

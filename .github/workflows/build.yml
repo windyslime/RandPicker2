@@ -2,6 +2,8 @@ name: Build RandPicker
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
   pull_request:
@@ -11,7 +13,7 @@ jobs:
   build:
     name: Build on ${{ matrix.os }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
@@ -46,7 +48,10 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip install .
-          uv pip install pyinstaller
+          uv pip install pyinstaller pytest
+
+      - name: Run tests
+        run: python -m pytest tests -q
 
       - name: Pre Build
         run: |
@@ -167,7 +172,10 @@ jobs:
       - name: Install dependencies
         run: |
           uv pip install .
-          uv pip install pyinstaller
+          uv pip install pyinstaller pytest
+
+      - name: Run tests
+        run: python3 -m pytest tests -q
 
       - name: Pre Build
         run: |
