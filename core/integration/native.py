@@ -2,6 +2,9 @@
 向系统发送通知
 """
 
+import subprocess
+import sys
+
 from PySide6.QtGui import QIcon
 from loguru import logger
 from multipledispatch import dispatch
@@ -72,14 +75,49 @@ class NativeNotifier:
 
     def _send(self, title: str, message: str) -> None:
         """发送系统通知"""
+        error = None
         try:
-            self.tray.trayIcon.showMessage(
-                title,
-                message,
-                QIcon(str(ASSETS_DIR / "icon-light.jpg")),
-                5000,
-            )
+            tray_icon = getattr(self.tray, "trayIcon", None)
+            if tray_icon is not None:
+                tray_icon.showMessage(
+                    title,
+                    message,
+                    QIcon(str(ASSETS_DIR / "icon-light.jpg")),
+                    5000,
+                )
+            elif sys.platform == "darwin":
+                self._send_macos_notification(title, message)
+            else:
+                raise RuntimeError("系统托盘不可用，无法发送原生通知")
 
             logger.success(f"Native 通知发送成功: {title}: {message}")
         except Exception as e:
+            error = e
             logger.exception(f"Native 通知发送失败: {e}")
+        if error is not None:
+            raise error
+
+    @staticmethod
+    def _escape_applescript_string(value: str) -> str:
+        """Escape text for an AppleScript string literal."""
+        return (
+            str(value)
+            .replace("\\", "\\\\")
+            .replace('"', '\\"')
+            .replace("\r", " ")
+            .replace("\n", "\\n")
+        )
+
+    def _send_macos_notification(self, title: str, message: str) -> None:
+        """Send a macOS notification without touching Qt's status item."""
+        script = (
+            f'display notification "{self._escape_applescript_string(message)}" '
+            f'with title "{self._escape_applescript_string(title)}"'
+        )
+        subprocess.run(
+            ["osascript", "-e", script],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+        )

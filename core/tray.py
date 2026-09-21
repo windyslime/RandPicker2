@@ -2,6 +2,9 @@
 系统托盘菜单。
 """
 
+import platform
+import sys
+
 from PySide6.QtCore import QObject
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
@@ -30,7 +33,32 @@ class RPTray(QObject):
         self.toggle_action = None
         self._init_tray()
 
+    @staticmethod
+    def _is_qt_status_item_unsafe() -> bool:
+        """Return whether Qt's Cocoa status-item event path is unsafe.
+
+        Qt 6.11.2 reads ``NSApp.currentEvent.clickCount`` while opening a
+        status-item menu. macOS 27 may provide a gesture event there instead
+        of a mouse event, which raises an Objective-C assertion and aborts the
+        process. Qt has an upstream fix, but it is not present in the wheel
+        currently used by RandPicker. This guard should be removed once the
+        bundled Qt contains commit 65020b43cdd2 (or an equivalent fix).
+        """
+        if sys.platform != "darwin":
+            return False
+        try:
+            major = int(platform.mac_ver()[0].split(".", 1)[0])
+        except (IndexError, TypeError, ValueError):
+            return False
+        return major >= 27
+
     def _init_tray(self):
+        if self._is_qt_status_item_unsafe():
+            logger.warning(
+                "当前 macOS 版本的 Qt 状态栏菜单存在已知崩溃问题，已禁用托盘菜单；"
+                "原生通知将改用系统通知。"
+            )
+            return
         if not QSystemTrayIcon.isSystemTrayAvailable():
             logger.warning("系统托盘不可用，跳过托盘菜单。")
             return
