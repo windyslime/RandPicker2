@@ -97,10 +97,12 @@ if CSHARP_AVAILABLE:
                 return
             try:
                 self._set_connectivity("NotConnected")
+                # Set this before starting the thread. Otherwise the new
+                # thread can observe False and exit before its first loop.
+                self.is_running = True
                 self.client_thread = threading.Thread(target=self._run, daemon=False)
                 self.client_thread.start()
                 logger.info("ClassIsland 集成客户端已启动。")
-                self.is_running = True
             except Exception as e:
                 logger.exception(f"启动 ClassIsland 集成客户端时出错: {e}")
                 self.is_running = False
@@ -144,8 +146,8 @@ if CSHARP_AVAILABLE:
                         else:  # 首次连接 不是“连接丢失”
                             self._allow_reconnect()  # 让队列里保留一个首次连接的尝试
 
-                        task = self.ipcClient.Connect()
-                        await self._await_dotnet_task(task)
+                        if not await self._try_connect():
+                            continue
                         self._set_connectivity("Connected")
                         logger.info("ClassIsland 集成客户端已连接。")
 
@@ -160,6 +162,18 @@ if CSHARP_AVAILABLE:
                 pass
             finally:
                 self._cleanup()
+
+        async def _try_connect(self) -> bool:
+            """Try one IPC connection without terminating the retry loop."""
+            try:
+                task = self.ipcClient.Connect()
+                await self._await_dotnet_task(task)
+                return True
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                logger.warning(f"连接 ClassIsland 失败，将继续重试: {e}")
+                return False
 
         async def _await_dotnet_task(self, task):
             loop = asyncio.get_running_loop()
@@ -234,8 +248,7 @@ if CSHARP_AVAILABLE:
                 return False
             try:
                 result = self._format_message(pick_type, stus)
-                self._send(result)
-                return True
+                return self._send(result)
             except Exception as e:
                 logger.exception(f"发送 ClassIsland 通知时出错: {e}")
                 return False
@@ -251,8 +264,7 @@ if CSHARP_AVAILABLE:
                 result.PickType = PickType.Test
                 result.Title = title
                 result.Overlay = message
-                self._send(result)
-                return True
+                return self._send(result)
             except Exception as e:
                 logger.exception(f"ClassIsland 原始通知发送失败: {e}")
                 return False
@@ -326,7 +338,7 @@ if CSHARP_AVAILABLE:
 
             return result
 
-        def _send(self, result: NotifyResult):
+        def _send(self, result: NotifyResult) -> bool:
             """
             发送通知到 ClassIsland
 
@@ -337,8 +349,10 @@ if CSHARP_AVAILABLE:
                                                                            self.ipcClient.PeerProxy)
                 rpService.Notify(result)
                 logger.success(f"ClassIsland 通知发送成功: {result.Title}: {result.Overlay}")
+                return True
             except Exception as e:
                 logger.exception(f"向 ClassIsland 发送通知时出错: {e}")
+                return False
 
         def get_availability(self):
             return self.is_available

@@ -4,7 +4,7 @@ from PySide6.QtCore import QObject, Slot
 from loguru import logger
 from packaging.version import Version
 
-VERSION = Version("2.1.3")
+VERSION = Version("2.1.4")
 CODENAME = "JellyCat"
 
 
